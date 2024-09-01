@@ -3,7 +3,7 @@
 ## Installation
 
 ```sh
-go get -u github.com/gowool/logwise
+go get -u github.com/gowool/logwise/v2
 ```
 
 ## License
