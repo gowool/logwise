@@ -8,6 +8,7 @@ import (
 	slogzap "github.com/samber/slog-zap/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Discard is a [Handler] which is always disabled and therefore logs nothing.
@@ -117,7 +118,14 @@ func NewZap(cfg Config) (*zap.Logger, error) {
 	}
 
 	if cfg.FileLogger != nil {
-		w := zapcore.AddSync(cfg.FileLogger)
+		w := zapcore.AddSync(&lumberjack.Logger{
+			Filename:   cfg.FileLogger.Filename,
+			MaxSize:    cfg.FileLogger.MaxSize,
+			MaxAge:     cfg.FileLogger.MaxAge,
+			MaxBackups: cfg.FileLogger.MaxBackups,
+			LocalTime:  cfg.FileLogger.LocalTime,
+			Compress:   cfg.FileLogger.Compress,
+		})
 
 		core := zapcore.NewCore(
 			zapcore.NewJSONEncoder(zCfg.EncoderConfig),
