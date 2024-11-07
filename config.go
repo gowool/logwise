@@ -38,7 +38,7 @@ type Config struct {
 	FileLogger *FileLoggerConfig `json:"fileLogger,omitempty" yaml:"fileLogger,omitempty"`
 }
 
-func (cfg *Config) InitDefaults() {
+func (cfg *Config) setDefaults() {
 	if cfg.Mode == "" {
 		if color.NoColor {
 			cfg.Mode = production
@@ -62,7 +62,7 @@ func (cfg *Config) InitDefaults() {
 		cfg.ErrorOutput = []string{"stderr"}
 	}
 	if cfg.FileLogger != nil {
-		cfg.FileLogger.InitDefaults()
+		cfg.FileLogger.setDefaults()
 	}
 }
 
@@ -98,7 +98,7 @@ type FileLoggerConfig struct {
 	Compress bool `json:"compress,omitempty" yaml:"compress,omitempty"`
 }
 
-func (cfg *FileLoggerConfig) InitDefaults() {
+func (cfg *FileLoggerConfig) setDefaults() {
 	if cfg.MaxSize == 0 {
 		cfg.MaxSize = 100
 	}

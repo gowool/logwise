@@ -33,6 +33,8 @@ func NewSlog(logger *zap.Logger) *slog.Logger {
 }
 
 func NewZap(cfg Config) (*zap.Logger, error) {
+	cfg.setDefaults()
+
 	var zCfg zap.Config
 	switch cfg.Mode {
 	case off, none:
