@@ -34,8 +34,8 @@ type Config struct {
 	// logs, see the package-level AdvancedConfiguration example.
 	ErrorOutput []string `json:"errorOutput,omitempty" yaml:"errorOutput,omitempty"`
 
-	// File logger options
-	FileLogger *FileLoggerConfig `json:"fileLogger,omitempty" yaml:"fileLogger,omitempty"`
+	// RollingLogger rolling logger options
+	RollingLogger *RollingLoggerConfig `json:"rollingLogger,omitempty" yaml:"rollingLogger,omitempty"`
 }
 
 func (cfg *Config) setDefaults() {
@@ -55,23 +55,12 @@ func (cfg *Config) setDefaults() {
 	if cfg.Encoding == "" {
 		cfg.Encoding = "json"
 	}
-	if len(cfg.Output) == 0 {
-		cfg.Output = []string{"stderr"}
-	}
-	if len(cfg.ErrorOutput) == 0 {
-		cfg.ErrorOutput = []string{"stderr"}
-	}
-	if cfg.FileLogger != nil {
-		cfg.FileLogger.setDefaults()
+	if cfg.RollingLogger != nil {
+		cfg.RollingLogger.setDefaults()
 	}
 }
 
-type FileLoggerConfig struct {
-	// Filename is the file to write logs to.  Backup log files will be retained
-	// in the same directory.  It uses <processname>-lumberjack.log in
-	// os.TempDir() if empty.
-	Filename string `json:"filename,omitempty" yaml:"filename,omitempty"`
-
+type RollingLoggerConfig struct {
 	// MaxSize is the maximum size in megabytes of the log file before it gets
 	// rotated. It defaults to 100 megabytes.
 	MaxSize int `json:"maxSize,omitempty" yaml:"maxSize,omitempty"`
@@ -98,7 +87,7 @@ type FileLoggerConfig struct {
 	Compress bool `json:"compress,omitempty" yaml:"compress,omitempty"`
 }
 
-func (cfg *FileLoggerConfig) setDefaults() {
+func (cfg *RollingLoggerConfig) setDefaults() {
 	if cfg.MaxSize == 0 {
 		cfg.MaxSize = 100
 	}

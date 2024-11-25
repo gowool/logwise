@@ -1,39 +1,28 @@
 package logwise
 
 import (
-	"context"
 	"log/slog"
+	"net/url"
 	"time"
 
-	slogzap "github.com/samber/slog-zap/v2"
 	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Discard is a [Handler] which is always disabled and therefore logs nothing.
-var Discard slog.Handler = discardHandler{}
-
-var LogLevels = map[zapcore.Level]slog.Level{
-	zapcore.DebugLevel:  slog.LevelDebug,
-	zapcore.InfoLevel:   slog.LevelInfo,
-	zapcore.WarnLevel:   slog.LevelWarn,
-	zapcore.ErrorLevel:  slog.LevelError,
-	zapcore.DPanicLevel: slog.LevelError,
-	zapcore.PanicLevel:  slog.LevelError,
-	zapcore.FatalLevel:  slog.LevelError,
-}
-
-func NewSlog(logger *zap.Logger) *slog.Logger {
-	option := slogzap.Option{
-		Level:  LogLevels[logger.Level()],
-		Logger: logger.WithOptions(zap.AddCallerSkip(1)),
-	}
-	return slog.New(option.NewZapHandler())
+func NewSlog(logger zapcore.Core) *slog.Logger {
+	return slog.New(zapslog.NewHandler(logger, zapslog.WithCallerSkip(1)))
 }
 
 func NewZap(cfg Config) (*zap.Logger, error) {
 	cfg.setDefaults()
+
+	if cfg.RollingLogger != nil {
+		if err := zap.RegisterSink("rolling", syncFactory(*cfg.RollingLogger)); err != nil {
+			return nil, err
+		}
+	}
 
 	var zCfg zap.Config
 	switch cfg.Mode {
@@ -119,25 +108,32 @@ func NewZap(cfg Config) (*zap.Logger, error) {
 		}
 	}
 
-	if cfg.FileLogger != nil {
-		w := zapcore.AddSync(&lumberjack.Logger{
-			Filename:   cfg.FileLogger.Filename,
-			MaxSize:    cfg.FileLogger.MaxSize,
-			MaxAge:     cfg.FileLogger.MaxAge,
-			MaxBackups: cfg.FileLogger.MaxBackups,
-			LocalTime:  cfg.FileLogger.LocalTime,
-			Compress:   cfg.FileLogger.Compress,
-		})
-
-		core := zapcore.NewCore(
-			zapcore.NewJSONEncoder(zCfg.EncoderConfig),
-			w,
-			zCfg.Level,
-		)
-		return zap.New(core), nil
-	}
-
 	return zCfg.Build()
+}
+
+type sync struct {
+	*lumberjack.Logger
+}
+
+func (*sync) Sync() error {
+	return nil
+}
+
+func syncFactory(cfg RollingLoggerConfig) func(*url.URL) (zap.Sink, error) {
+	return func(u *url.URL) (zap.Sink, error) {
+		filename := u.Path
+		if u.Host == "." || u.Path == "" {
+			filename = u.Host + u.Path
+		}
+		return &sync{&lumberjack.Logger{
+			Filename:   filename,
+			MaxSize:    cfg.MaxSize,
+			MaxAge:     cfg.MaxAge,
+			MaxBackups: cfg.MaxBackups,
+			LocalTime:  cfg.LocalTime,
+			Compress:   cfg.Compress,
+		}}, nil
+	}
 }
 
 func level(lvl string) zap.AtomicLevel {
@@ -153,10 +149,3 @@ func utcISO8601TimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 func utcEpochTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendInt64(t.UTC().UnixNano())
 }
-
-type discardHandler struct{}
-
-func (discardHandler) Enabled(context.Context, slog.Level) bool  { return false }
-func (discardHandler) Handle(context.Context, slog.Record) error { return nil }
-func (d discardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
-func (d discardHandler) WithGroup(string) slog.Handler           { return d }
